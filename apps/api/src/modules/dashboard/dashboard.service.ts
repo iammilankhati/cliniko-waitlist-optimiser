@@ -65,6 +65,8 @@ export class DashboardService {
       patient: {
         id: m.waitlistEntry.patient.id,
         name: `${m.waitlistEntry.patient.firstName} ${m.waitlistEntry.patient.lastName}`,
+        email: m.waitlistEntry.patient.email,
+        phone: m.waitlistEntry.patient.phone,
       },
       appointmentType: m.waitlistEntry.appointmentType.name,
       appointmentTypeDuration: m.waitlistEntry.appointmentType.duration,

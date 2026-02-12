@@ -71,7 +71,7 @@ cliniko-waitlist-optimizer/
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/cliniko-waitlist-optimizer.git
+   git clone git@github.com:iammilankhati/cliniko-waitlist-optimiser.git
    cd cliniko-waitlist-optimizer
    ```
 

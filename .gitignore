@@ -47,3 +47,7 @@ CLAUDE.md
 
 # Old files
 *.old
+
+# Deployment (server-specific)
+deploy.sh
+ecosystem.config.js

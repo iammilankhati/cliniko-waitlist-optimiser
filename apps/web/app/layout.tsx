@@ -1,7 +1,13 @@
+import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 
 import "@workspace/ui/globals.css"
 import { Providers } from "@/components/providers"
+
+export const metadata: Metadata = {
+  title: "Cliniko Waitlist Optimizer",
+  description: "Smart matching for appointment scheduling - A proposed enhancement for Cliniko",
+}
 
 const fontSans = Geist({
   subsets: ["latin"],

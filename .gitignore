@@ -34,3 +34,16 @@ npm-debug.log*
 # Misc
 .DS_Store
 *.pem
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Internal notes (DO NOT PUBLISH)
+docs/RESEARCH_NOTES.md
+CLAUDE.md
+
+# Old files
+*.old

@@ -1,0 +1,298 @@
+// Prisma Schema for Cliniko Waitlist Optimizer
+// https://pris.ly/d/prisma-schema
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+enum DayOfWeek {
+  mon
+  tue
+  wed
+  thu
+  fri
+  sat
+  sun
+}
+
+enum TimeOfDay {
+  morning
+  afternoon
+  evening
+}
+
+enum WaitlistUrgency {
+  low
+  normal
+  high
+  urgent
+}
+
+enum WaitlistStatus {
+  active
+  booked
+  expired
+  cancelled
+}
+
+enum AppointmentStatus {
+  scheduled
+  confirmed
+  arrived
+  in_progress
+  completed
+  cancelled
+  no_show
+}
+
+// =============================================================================
+// MODELS
+// =============================================================================
+
+model Business {
+  id                   String   @id @default(cuid())
+  name                 String
+  addressLine1         String
+  addressLine2         String?
+  city                 String
+  state                String?
+  postCode             String
+  country              String
+  phone                String?
+  email                String?
+  website              String?
+  timezone             String   @default("Australia/Melbourne")
+  showInOnlineBookings Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // Business hours stored as JSON for flexibility
+  businessHours Json?
+
+  // Relations
+  practitioners          PractitionerBusiness[]
+  appointments           Appointment[]
+  availableSlots         AvailableSlot[]
+  waitlistPreferences    WaitlistBusinessPreference[]
+
+  @@map("businesses")
+}
+
+model Practitioner {
+  id                   String   @id @default(cuid())
+  firstName            String
+  lastName             String
+  title                String?
+  designation          String?
+  email                String   @unique
+  isActive             Boolean  @default(true)
+  showInOnlineBookings Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // Relations
+  businesses             PractitionerBusiness[]
+  appointments           Appointment[]
+  availableSlots         AvailableSlot[]
+  waitlistPreferences    WaitlistPractitionerPreference[]
+
+  @@map("practitioners")
+}
+
+model PractitionerBusiness {
+  id             String       @id @default(cuid())
+  practitioner   Practitioner @relation(fields: [practitionerId], references: [id], onDelete: Cascade)
+  practitionerId String
+  business       Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  businessId     String
+
+  @@unique([practitionerId, businessId])
+  @@map("practitioner_businesses")
+}
+
+model AppointmentType {
+  id                   String   @id @default(cuid())
+  name                 String
+  description          String?
+  duration             Int      // in minutes
+  color                String   @default("#4F46E5")
+  showInOnlineBookings Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // Relations
+  appointments   Appointment[]
+  availableSlots AvailableSlot[]
+  waitlistEntries WaitlistEntry[]
+
+  @@map("appointment_types")
+}
+
+model Patient {
+  id             String    @id @default(cuid())
+  firstName      String
+  lastName       String
+  dateOfBirth    DateTime?
+  email          String?
+  phone          String?
+  mobile         String?
+  addressLine1   String?
+  addressLine2   String?
+  city           String?
+  state          String?
+  postCode       String?
+  country        String?
+  referralSource String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  archivedAt     DateTime?
+
+  // Relations
+  appointments    Appointment[]
+  waitlistEntries WaitlistEntry[]
+
+  @@map("patients")
+}
+
+model Appointment {
+  id                 String            @id @default(cuid())
+  patient            Patient           @relation(fields: [patientId], references: [id])
+  patientId          String
+  practitioner       Practitioner      @relation(fields: [practitionerId], references: [id])
+  practitionerId     String
+  business           Business          @relation(fields: [businessId], references: [id])
+  businessId         String
+  appointmentType    AppointmentType   @relation(fields: [appointmentTypeId], references: [id])
+  appointmentTypeId  String
+  startsAt           DateTime
+  endsAt             DateTime
+  status             AppointmentStatus @default(scheduled)
+  notes              String?
+  cancellationReason String?
+  cancelledAt        DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  // Track if booked from waitlist
+  bookedFromWaitlist   WaitlistEntry? @relation(fields: [bookedFromWaitlistId], references: [id])
+  bookedFromWaitlistId String?        @unique
+
+  @@index([patientId])
+  @@index([practitionerId])
+  @@index([businessId])
+  @@index([startsAt])
+  @@map("appointments")
+}
+
+model AvailableSlot {
+  id                String          @id @default(cuid())
+  practitioner      Practitioner    @relation(fields: [practitionerId], references: [id])
+  practitionerId    String
+  business          Business        @relation(fields: [businessId], references: [id])
+  businessId        String
+  appointmentType   AppointmentType @relation(fields: [appointmentTypeId], references: [id])
+  appointmentTypeId String
+  startsAt          DateTime
+  endsAt            DateTime
+  duration          Int             // in minutes
+  isBooked          Boolean         @default(false)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([practitionerId])
+  @@index([businessId])
+  @@index([appointmentTypeId])
+  @@index([startsAt])
+  @@index([isBooked])
+  @@map("available_slots")
+}
+
+model WaitlistEntry {
+  id                      String          @id @default(cuid())
+  patient                 Patient         @relation(fields: [patientId], references: [id])
+  patientId               String
+  appointmentType         AppointmentType @relation(fields: [appointmentTypeId], references: [id])
+  appointmentTypeId       String
+  urgency                 WaitlistUrgency @default(normal)
+  status                  WaitlistStatus  @default(active)
+  notes                   String?
+  expiresAt               DateTime
+  outsideBusinessHoursOnly Boolean        @default(false)
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
+  bookedAt                DateTime?
+
+  // Availability preferences (days)
+  availableDays WaitlistDayPreference[]
+
+  // Preferred time of day
+  preferredTimesOfDay WaitlistTimePreference[]
+
+  // Preferred practitioners (empty = any)
+  preferredPractitioners WaitlistPractitionerPreference[]
+
+  // Preferred businesses (empty = any)
+  preferredBusinesses WaitlistBusinessPreference[]
+
+  // If booked, link to appointment
+  bookedAppointment Appointment?
+
+  @@index([patientId])
+  @@index([appointmentTypeId])
+  @@index([status])
+  @@index([urgency])
+  @@index([createdAt])
+  @@map("waitlist_entries")
+}
+
+model WaitlistDayPreference {
+  id              String        @id @default(cuid())
+  waitlistEntry   WaitlistEntry @relation(fields: [waitlistEntryId], references: [id], onDelete: Cascade)
+  waitlistEntryId String
+  day             DayOfWeek
+
+  @@unique([waitlistEntryId, day])
+  @@map("waitlist_day_preferences")
+}
+
+model WaitlistTimePreference {
+  id              String        @id @default(cuid())
+  waitlistEntry   WaitlistEntry @relation(fields: [waitlistEntryId], references: [id], onDelete: Cascade)
+  waitlistEntryId String
+  timeOfDay       TimeOfDay
+
+  @@unique([waitlistEntryId, timeOfDay])
+  @@map("waitlist_time_preferences")
+}
+
+model WaitlistPractitionerPreference {
+  id              String        @id @default(cuid())
+  waitlistEntry   WaitlistEntry @relation(fields: [waitlistEntryId], references: [id], onDelete: Cascade)
+  waitlistEntryId String
+  practitioner    Practitioner  @relation(fields: [practitionerId], references: [id], onDelete: Cascade)
+  practitionerId  String
+
+  @@unique([waitlistEntryId, practitionerId])
+  @@map("waitlist_practitioner_preferences")
+}
+
+model WaitlistBusinessPreference {
+  id              String        @id @default(cuid())
+  waitlistEntry   WaitlistEntry @relation(fields: [waitlistEntryId], references: [id], onDelete: Cascade)
+  waitlistEntryId String
+  business        Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  businessId      String
+
+  @@unique([waitlistEntryId, businessId])
+  @@map("waitlist_business_preferences")
+}

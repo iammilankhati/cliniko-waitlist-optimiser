@@ -76,7 +76,6 @@ export function useBookMatch() {
     mutationFn: ({ waitlistEntryId, slotId }: { waitlistEntryId: string; slotId: string }) =>
       api.matching.book(waitlistEntryId, slotId),
     onSuccess: () => {
-      // Invalidate related queries
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["matching"] });
       queryClient.invalidateQueries({ queryKey: ["waitlist"] });

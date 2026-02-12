@@ -257,7 +257,6 @@ export class MatchingService {
       }
     }
 
-    // Sort by score descending
     return results.sort((a, b) => b.score - a.score);
   }
 
@@ -332,9 +331,7 @@ export class MatchingService {
         return { success: false, error: 'Slot is already booked' };
       }
 
-      // Create appointment and update waitlist entry in a transaction
       const result = await this.prisma.$transaction(async (tx) => {
-        // Create appointment
         const appointment = await tx.appointment.create({
           data: {
             patientId: entry.patientId,
@@ -348,13 +345,11 @@ export class MatchingService {
           },
         });
 
-        // Mark slot as booked
         await tx.availableSlot.update({
           where: { id: slot.id },
           data: { isBooked: true },
         });
 
-        // Update waitlist entry
         await tx.waitlistEntry.update({
           where: { id: entry.id },
           data: {

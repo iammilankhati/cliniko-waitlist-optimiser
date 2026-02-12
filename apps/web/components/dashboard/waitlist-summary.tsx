@@ -56,7 +56,6 @@ export function WaitlistSummary() {
               className="p-2 sm:p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
             >
               <div className="flex flex-col gap-1.5 sm:gap-2">
-                {/* Name + Urgency */}
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
                     <User className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
@@ -67,7 +66,6 @@ export function WaitlistSummary() {
                   </Badge>
                 </div>
 
-                {/* Type + Time */}
                 <div className="flex items-center gap-2 sm:gap-4 flex-wrap text-xs sm:text-sm text-muted-foreground">
                   <span
                     className="px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs"
@@ -81,7 +79,6 @@ export function WaitlistSummary() {
                   </span>
                 </div>
 
-                {/* Preferences - hidden on small mobile */}
                 {entry.preferredPractitioners.length > 0 && (
                   <div className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground flex-wrap">
                     <span>Prefers:</span>
@@ -96,7 +93,6 @@ export function WaitlistSummary() {
                   </div>
                 )}
 
-                {/* Available days - shown compactly */}
                 {entry.availableDays.length > 0 && (
                   <div className="flex items-center gap-1 text-[10px] sm:text-xs text-muted-foreground">
                     <Calendar className="h-3 w-3 shrink-0" />

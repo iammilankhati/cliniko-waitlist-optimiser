@@ -1,29 +1,21 @@
 "use client";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
-import { Badge } from "@workspace/ui/components/badge";
 import { Button } from "@workspace/ui/components/button";
 import { Skeleton } from "@workspace/ui/components/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@workspace/ui/components/table";
+import { Dialog, DialogContent, DialogTitle } from "@workspace/ui/components/dialog";
 import { useTopMatches, useBookMatch } from "@/hooks/use-api";
-import { CheckCircle, Clock, User, MapPin, Calendar } from "lucide-react";
+import { Clock, User, MapPin, Calendar, Eye, Phone, Mail, Stethoscope } from "lucide-react";
 import { useState, useMemo } from "react";
 import type { TopMatch } from "@/lib/api";
 
 type Urgency = "urgent" | "high" | "normal" | "low";
 
-const urgencyColors: Record<string, string> = {
-  urgent: "bg-red-500",
-  high: "bg-orange-500",
-  normal: "bg-blue-500",
-  low: "bg-gray-500",
+const urgencyConfig: Record<Urgency, { dot: string; text: string; bg: string; label: string }> = {
+  urgent: { dot: "bg-red-500", text: "text-red-600", bg: "bg-red-50", label: "Urgent" },
+  high: { dot: "bg-orange-500", text: "text-orange-600", bg: "bg-orange-50", label: "High" },
+  normal: { dot: "bg-blue-500", text: "text-blue-600", bg: "bg-blue-50", label: "Normal" },
+  low: { dot: "bg-gray-400", text: "text-gray-500", bg: "bg-gray-50", label: "Low" },
 };
 
 const urgencyOrder: Urgency[] = ["urgent", "high", "normal", "low"];
@@ -39,10 +31,11 @@ function formatDate(dateString: string) {
   }).format(date);
 }
 
-function formatDateShort(dateString: string) {
+function formatDateLong(dateString: string) {
   const date = new Date(dateString);
   return new Intl.DateTimeFormat("en-AU", {
-    weekday: "short",
+    weekday: "long",
+    month: "long",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
@@ -54,105 +47,359 @@ function formatDaysWaiting(createdAt: string) {
   return days === 1 ? "1 day" : `${days} days`;
 }
 
-// Mobile card component for each match
-function MatchCard({
+function ViewDetailsModal({
   match,
+  open,
+  onOpenChange,
   onBook,
-  isBooking
+  isBooking,
 }: {
   match: TopMatch;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onBook: () => void;
   isBooking: boolean;
 }) {
+  const config = urgencyConfig[match.urgency];
+
   return (
-    <div className="border rounded-lg p-3 sm:p-4 space-y-3 bg-card hover:bg-accent/30 transition-colors">
-      {/* Header: Score + Patient + Urgency */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex flex-col items-center justify-center bg-primary/10 rounded-lg p-2 min-w-[50px]">
-            <span className="text-xl sm:text-2xl font-bold text-primary">{match.score}</span>
-            <span className="text-[10px] text-muted-foreground">score</span>
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-medium text-sm sm:text-base truncate">{match.patient.name}</span>
-              <Badge className={`${urgencyColors[match.urgency]} text-white text-xs`} variant="secondary">
-                {match.urgency}
-              </Badge>
-            </div>
-            <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
-              <Clock className="h-3 w-3 shrink-0" />
-              <span>Waiting {formatDaysWaiting(match.createdAt)}</span>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg p-0 gap-0">
+        <div className="px-5 pt-5 pb-4 pr-12 border-b border-gray-100">
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-base font-semibold text-gray-900">
+              Match Details
+            </DialogTitle>
+            <div className="flex items-center gap-2">
+              <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium ${config.bg} ${config.text}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${config.dot}`} />
+                {config.label}
+              </span>
+              <span className="text-sm font-semibold text-gray-900">{match.score} pts</span>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Details Grid */}
-      <div className="grid grid-cols-2 gap-3 text-sm">
-        {/* Appointment */}
-        <div className="space-y-1">
-          <span className="text-xs text-muted-foreground">Appointment</span>
+        <div className="px-5 py-4 space-y-4 max-h-[70vh] overflow-y-auto">
           <div>
-            <span className="font-medium text-xs sm:text-sm">{match.appointmentType}</span>
-            <span
-              className="ml-1.5 text-xs px-1.5 py-0.5 rounded"
-              style={{ backgroundColor: match.appointmentTypeColor + "20" }}
-            >
-              {match.appointmentTypeDuration}m
+            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Patient</p>
+            <p className="text-sm font-medium text-gray-900">{match.patient.name}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Waiting {formatDaysWaiting(match.createdAt)}</p>
+            {(match.patient.email || match.patient.phone) && (
+              <div className="flex flex-wrap gap-3 mt-2">
+                {match.patient.email && (
+                  <span className="inline-flex items-center gap-1 text-xs text-gray-500">
+                    <Mail className="h-3 w-3" />
+                    {match.patient.email}
+                  </span>
+                )}
+                {match.patient.phone && (
+                  <span className="inline-flex items-center gap-1 text-xs text-gray-500">
+                    <Phone className="h-3 w-3" />
+                    {match.patient.phone}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Appointment</p>
+            <div className="flex items-center gap-2">
+              <span
+                className="w-2 h-2 rounded-full"
+                style={{ backgroundColor: match.appointmentTypeColor }}
+              />
+              <span className="text-sm text-gray-900">{match.appointmentType}</span>
+              <span className="text-xs text-gray-400">({match.appointmentTypeDuration} min)</span>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Available Slot</p>
+            <div className="space-y-1">
+              <p className="text-sm text-gray-900">{match.slot.practitioner}</p>
+              <p className="text-xs text-gray-500 flex items-center gap-1">
+                <MapPin className="h-3 w-3" />
+                {match.slot.business}
+              </p>
+              <p className="text-sm font-medium text-gray-900 mt-1.5">{formatDateLong(match.slot.startsAt)}</p>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Why this match</p>
+            <div className="flex flex-wrap gap-1.5">
+              {match.matchReasons.map((reason, i) => (
+                <span
+                  key={i}
+                  className="inline-flex items-center px-2 py-0.5 rounded text-xs text-gray-600 bg-gray-100"
+                >
+                  {reason}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="px-5 py-4 border-t border-gray-100 flex gap-3">
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            className="flex-1 h-9 text-sm cursor-pointer"
+          >
+            Close
+          </Button>
+          <Button
+            onClick={onBook}
+            disabled={isBooking}
+            className="flex-1 h-9 text-sm bg-emerald-600 hover:bg-emerald-700 cursor-pointer"
+          >
+            {isBooking ? "Booking..." : "Book Appointment"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function BookingConfirmModal({
+  match,
+  open,
+  onOpenChange,
+  onConfirm,
+  isBooking,
+}: {
+  match: TopMatch;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => void;
+  isBooking: boolean;
+}) {
+  const config = urgencyConfig[match.urgency];
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm p-0 gap-0">
+        <div className="px-5 pt-5 pb-3 pr-12">
+          <DialogTitle className="text-base font-semibold text-gray-900">
+            Confirm Booking
+          </DialogTitle>
+          <p className="text-sm text-gray-500 mt-1">
+            Book this appointment?
+          </p>
+        </div>
+
+        <div className="px-5 py-3">
+          <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <User className="h-4 w-4 text-gray-400" />
+                <span className="text-sm font-medium text-gray-900">{match.patient.name}</span>
+              </div>
+              <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium ${config.bg} ${config.text}`}>
+                <span className={`w-1 h-1 rounded-full ${config.dot}`} />
+                {config.label}
+              </span>
+            </div>
+
+            <div className="border-t border-gray-200" />
+
+            <div className="space-y-2 text-sm">
+              <div className="flex items-start gap-2">
+                <Stethoscope className="h-4 w-4 text-gray-400 mt-0.5" />
+                <div>
+                  <p className="text-gray-900">{match.slot.practitioner}</p>
+                  <p className="text-xs text-gray-500">{match.appointmentType} ({match.appointmentTypeDuration} min)</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-gray-400" />
+                <span className="text-gray-600">{match.slot.business}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-gray-400" />
+                <span className="text-gray-900 font-medium">{formatDateLong(match.slot.startsAt)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-5 py-4 flex gap-3">
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isBooking}
+            className="flex-1 h-9 text-sm cursor-pointer"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={onConfirm}
+            disabled={isBooking}
+            className="flex-1 h-9 text-sm bg-emerald-600 hover:bg-emerald-700 cursor-pointer"
+          >
+            {isBooking ? "Booking..." : "Confirm"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function MatchRow({
+  match,
+  onView,
+  onBook,
+}: {
+  match: TopMatch;
+  onView: () => void;
+  onBook: () => void;
+}) {
+  const config = urgencyConfig[match.urgency];
+
+  return (
+    <div className="group bg-white border border-gray-200 rounded-lg p-4 hover:border-gray-300 hover:shadow-sm transition-all">
+      {/* Desktop */}
+      <div className="hidden sm:flex items-start gap-4">
+        <div className="flex flex-col items-center justify-center w-14 h-14 rounded-lg bg-gray-50 border border-gray-100 shrink-0">
+          <span className="text-lg font-bold text-gray-900">{match.score}</span>
+          <span className="text-[10px] text-gray-400 font-medium">match</span>
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <h3 className="text-sm font-semibold text-gray-900 truncate">{match.patient.name}</h3>
+            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${config.bg} ${config.text}`}>
+              <span className={`w-1 h-1 rounded-full ${config.dot}`} />
+              {config.label}
             </span>
           </div>
-        </div>
 
-        {/* Slot */}
-        <div className="space-y-1">
-          <span className="text-xs text-muted-foreground">Practitioner</span>
-          <div className="font-medium text-xs sm:text-sm truncate">{match.slot.practitioner}</div>
-        </div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+            <span className="flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              {formatDaysWaiting(match.createdAt)}
+            </span>
+            <span>{match.appointmentType}</span>
+          </div>
 
-        {/* Location */}
-        <div className="space-y-1">
-          <span className="text-xs text-muted-foreground">Location</span>
-          <div className="flex items-center gap-1 text-xs sm:text-sm">
-            <MapPin className="h-3 w-3 shrink-0 text-muted-foreground" />
-            <span className="truncate">{match.slot.business}</span>
+          <div className="flex items-center gap-3 mt-2 text-xs text-gray-600">
+            <span className="font-medium">{match.slot.practitioner}</span>
+            <span className="text-gray-300">•</span>
+            <span className="flex items-center gap-1">
+              <MapPin className="h-3 w-3" />
+              {match.slot.business}
+            </span>
+            <span className="text-gray-300">•</span>
+            <span>{formatDate(match.slot.startsAt)}</span>
+          </div>
+
+          <div className="flex flex-wrap gap-1 mt-2">
+            {match.matchReasons.slice(0, 3).map((reason, i) => (
+              <span
+                key={i}
+                className="px-1.5 py-0.5 rounded text-[10px] text-gray-500 bg-gray-50 border border-gray-100"
+              >
+                {reason}
+              </span>
+            ))}
+            {match.matchReasons.length > 3 && (
+              <span className="text-[10px] text-gray-400">+{match.matchReasons.length - 3}</span>
+            )}
           </div>
         </div>
 
-        {/* Time */}
-        <div className="space-y-1">
-          <span className="text-xs text-muted-foreground">Slot Time</span>
-          <div className="flex items-center gap-1 text-xs sm:text-sm">
-            <Calendar className="h-3 w-3 shrink-0 text-muted-foreground" />
-            <span>{formatDateShort(match.slot.startsAt)}</span>
-          </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onView}
+            className="h-8 px-3 text-xs cursor-pointer"
+          >
+            <Eye className="h-3.5 w-3.5 mr-1.5" />
+            View
+          </Button>
+          <Button
+            size="sm"
+            onClick={onBook}
+            className="h-8 px-3 text-xs cursor-pointer bg-emerald-600 hover:bg-emerald-700"
+          >
+            Book
+          </Button>
         </div>
       </div>
 
-      {/* Match Reasons + Action */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2 border-t">
-        <div className="flex flex-wrap gap-1">
-          {match.matchReasons.slice(0, 3).map((reason, i) => (
-            <Badge key={i} variant="outline" className="text-xs">
-              {reason}
-            </Badge>
-          ))}
+      {/* Mobile */}
+      <div className="sm:hidden">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="flex flex-col items-center justify-center w-12 h-12 rounded-lg bg-gray-50 border border-gray-100 shrink-0">
+            <span className="text-base font-bold text-gray-900">{match.score}</span>
+            <span className="text-[9px] text-gray-400 font-medium">match</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-gray-900 truncate">{match.patient.name}</h3>
+              <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${config.bg} ${config.text}`}>
+                <span className={`w-1 h-1 rounded-full ${config.dot}`} />
+                {config.label}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
+              <Clock className="h-3 w-3" />
+              <span>{formatDaysWaiting(match.createdAt)}</span>
+              <span className="text-gray-300">•</span>
+              <span className="truncate">{match.appointmentType}</span>
+            </div>
+          </div>
         </div>
-        <Button
-          size="sm"
-          onClick={onBook}
-          disabled={isBooking}
-          className="w-full sm:w-auto cursor-pointer"
-        >
-          {isBooking ? (
-            "Booking..."
-          ) : (
-            <>
-              <CheckCircle className="h-4 w-4 mr-1.5" />
-              Book Appointment
-            </>
+
+        <div className="bg-gray-50 rounded-lg p-3 mb-3 space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-gray-900">{match.slot.practitioner}</span>
+          </div>
+          <div className="flex items-center gap-1 text-xs text-gray-500">
+            <MapPin className="h-3 w-3" />
+            <span>{match.slot.business}</span>
+          </div>
+          <div className="flex items-center gap-1 text-xs text-gray-700 font-medium">
+            <Calendar className="h-3 w-3" />
+            <span>{formatDate(match.slot.startsAt)}</span>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-1 mb-3">
+          {match.matchReasons.slice(0, 2).map((reason, i) => (
+            <span
+              key={i}
+              className="px-1.5 py-0.5 rounded text-[10px] text-gray-500 bg-gray-50 border border-gray-100"
+            >
+              {reason}
+            </span>
+          ))}
+          {match.matchReasons.length > 2 && (
+            <span className="text-[10px] text-gray-400">+{match.matchReasons.length - 2}</span>
           )}
-        </Button>
+        </div>
+
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onView}
+            className="flex-1 h-9 text-sm cursor-pointer"
+          >
+            <Eye className="h-4 w-4 mr-1.5" />
+            View Details
+          </Button>
+          <Button
+            size="sm"
+            onClick={onBook}
+            className="flex-1 h-9 text-sm cursor-pointer bg-emerald-600 hover:bg-emerald-700"
+          >
+            Book
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -163,6 +410,8 @@ export function MatchesTable() {
   const bookMatch = useBookMatch();
   const [bookingId, setBookingId] = useState<string | null>(null);
   const [selectedUrgencies, setSelectedUrgencies] = useState<Set<Urgency>>(new Set());
+  const [viewMatch, setViewMatch] = useState<TopMatch | null>(null);
+  const [confirmMatch, setConfirmMatch] = useState<TopMatch | null>(null);
 
   const filteredMatches = useMemo(() => {
     if (!matches) return [];
@@ -182,10 +431,12 @@ export function MatchesTable() {
     });
   };
 
-  const handleBook = async (waitlistEntryId: string, slotId: string, matchId: string) => {
-    setBookingId(matchId);
+  const handleBook = async (match: TopMatch) => {
+    setBookingId(match.id);
     try {
-      await bookMatch.mutateAsync({ waitlistEntryId, slotId });
+      await bookMatch.mutateAsync({ waitlistEntryId: match.waitlistEntryId, slotId: match.slotId });
+      setConfirmMatch(null);
+      setViewMatch(null);
     } finally {
       setBookingId(null);
     }
@@ -193,15 +444,15 @@ export function MatchesTable() {
 
   if (isLoading) {
     return (
-      <Card>
-        <CardHeader className="pb-3 sm:pb-6">
-          <CardTitle className="text-base sm:text-lg">Top Matches</CardTitle>
-          <CardDescription className="text-xs sm:text-sm">Loading matches...</CardDescription>
+      <Card className="border-0 shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-base">Top Matches</CardTitle>
+          <CardDescription className="text-xs">Loading...</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
             {[...Array(5)].map((_, i) => (
-              <Skeleton key={i} className="h-32 sm:h-16 w-full" />
+              <Skeleton key={i} className="h-24 w-full rounded-lg" />
             ))}
           </div>
         </CardContent>
@@ -210,158 +461,94 @@ export function MatchesTable() {
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-3 sm:pb-6">
-        <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-          Top Matches
-          <Badge variant="secondary" className="text-xs">
-            {selectedUrgencies.size > 0 ? `${filteredMatches.length}/${matches?.length ?? 0}` : matches?.length ?? 0}
-          </Badge>
-        </CardTitle>
-        <CardDescription className="text-xs sm:text-sm">
-          Best waitlist-to-slot matches based on preferences, urgency, and wait time
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="px-3 sm:px-6">
-        {/* Urgency Filter */}
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          <span className="text-xs text-muted-foreground">Filter:</span>
-          {urgencyOrder.map((urgency) => {
-            const isSelected = selectedUrgencies.has(urgency);
-            const count = matches?.filter((m) => m.urgency === urgency).length ?? 0;
-            return (
+    <>
+      <Card className="border-0 shadow-sm">
+        <CardHeader className="pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+              <CardTitle className="text-base">Top Matches</CardTitle>
+              <CardDescription className="text-xs mt-0.5">
+                Best waitlist-to-slot matches
+              </CardDescription>
+            </div>
+            <span className="text-xs text-gray-500">
+              {selectedUrgencies.size > 0 ? filteredMatches.length : matches?.length ?? 0} matches
+            </span>
+          </div>
+        </CardHeader>
+
+        <CardContent className="pt-0">
+          <div className="flex flex-wrap items-center gap-2 mb-4 pb-3 border-b border-gray-100">
+            <span className="text-xs text-gray-400">Filter:</span>
+            {urgencyOrder.map((urgency) => {
+              const isSelected = selectedUrgencies.has(urgency);
+              const count = matches?.filter((m) => m.urgency === urgency).length ?? 0;
+              const cfg = urgencyConfig[urgency];
+              return (
+                <button
+                  key={urgency}
+                  onClick={() => toggleUrgency(urgency)}
+                  className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium transition-all cursor-pointer ${
+                    isSelected
+                      ? `${cfg.bg} ${cfg.text}`
+                      : "text-gray-500 hover:bg-gray-50"
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? cfg.dot : 'bg-gray-300'}`} />
+                  {cfg.label}
+                  <span className="text-[10px] opacity-60">({count})</span>
+                </button>
+              );
+            })}
+            {selectedUrgencies.size > 0 && (
               <button
-                key={urgency}
-                onClick={() => toggleUrgency(urgency)}
-                className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium transition-all cursor-pointer border ${
-                  isSelected
-                    ? `${urgencyColors[urgency]} text-white border-transparent`
-                    : "bg-background text-muted-foreground border-border hover:border-foreground/30"
-                }`}
+                onClick={() => setSelectedUrgencies(new Set())}
+                className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer"
               >
-                {urgency}
-                <span className={`text-[10px] ${isSelected ? "text-white/80" : "text-muted-foreground"}`}>
-                  ({count})
-                </span>
+                Clear
               </button>
-            );
-          })}
-          {selectedUrgencies.size > 0 && (
-            <button
-              onClick={() => setSelectedUrgencies(new Set())}
-              className="text-xs text-muted-foreground hover:text-foreground underline cursor-pointer"
-            >
-              Clear
-            </button>
-          )}
-        </div>
+            )}
+          </div>
 
-        {/* Mobile/Tablet: Card Layout */}
-        <div className="lg:hidden space-y-3">
-          {filteredMatches.map((match) => (
-            <MatchCard
-              key={match.id}
-              match={match}
-              onBook={() => handleBook(match.waitlistEntryId, match.slotId, match.id)}
-              isBooking={bookingId === match.id}
-            />
-          ))}
-        </div>
+          <div className="space-y-3">
+            {filteredMatches.length === 0 ? (
+              <div className="text-center py-8">
+                <Calendar className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                <p className="text-sm text-gray-400">No matches found</p>
+              </div>
+            ) : (
+              filteredMatches.map((match) => (
+                <MatchRow
+                  key={match.id}
+                  match={match}
+                  onView={() => setViewMatch(match)}
+                  onBook={() => setConfirmMatch(match)}
+                />
+              ))
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Desktop: Table Layout */}
-        <div className="hidden lg:block">
-          <Table className="table-fixed w-full">
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-16">Score</TableHead>
-                <TableHead className="w-[18%]">Patient</TableHead>
-                <TableHead className="w-[16%]">Type</TableHead>
-                <TableHead className="w-[22%]">Slot</TableHead>
-                <TableHead>Reasons</TableHead>
-                <TableHead className="text-right w-20">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredMatches.map((match) => (
-                <TableRow key={match.id}>
-                  <TableCell className="py-2">
-                    <div className="flex flex-col items-center">
-                      <span className="text-xs font-bold text-primary">{match.score}</span>
-                      <Badge className={`${urgencyColors[match.urgency]} text-white text-xs px-1.5`} variant="secondary">
-                        {match.urgency}
-                      </Badge>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-2">
-                    <div className="flex flex-col min-w-0">
-                      <span className="font-semibold text-xs truncate flex items-center gap-1">
-                        <User className="h-3 w-3 shrink-0" />
-                        <span className="truncate">{match.patient.name}</span>
-                      </span>
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Clock className="h-3 w-3 shrink-0" />
-                        {formatDaysWaiting(match.createdAt)}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-2">
-                    <div className="flex flex-col min-w-0">
-                      <span className="font-semibold text-xs truncate">{match.appointmentType}</span>
-                      <span
-                        className="text-xs text-muted-foreground px-1 rounded w-fit"
-                        style={{ backgroundColor: match.appointmentTypeColor + "20" }}
-                      >
-                        {match.appointmentTypeDuration}m
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-2">
-                    <div className="flex flex-col min-w-0">
-                      <span className="font-semibold text-xs truncate">{match.slot.practitioner}</span>
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <MapPin className="h-3 w-3 shrink-0" />
-                        <span className="truncate">{match.slot.business}</span>
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {formatDate(match.slot.startsAt)}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-2">
-                    <div className="flex flex-wrap gap-0.5">
-                      {match.matchReasons.slice(0, 2).map((reason, i) => (
-                        <Badge key={i} variant="outline" className="text-xs px-1.5 py-0">
-                          {reason}
-                        </Badge>
-                      ))}
-                      {match.matchReasons.length > 2 && (
-                        <span className="text-xs text-muted-foreground">+{match.matchReasons.length - 2}</span>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right py-2">
-                    <Button
-                      size="sm"
-                      onClick={() => handleBook(match.waitlistEntryId, match.slotId, match.id)}
-                      disabled={bookingId === match.id}
-                      className="cursor-pointer h-7 px-2 text-xs"
-                    >
-                      {bookingId === match.id ? (
-                        "..."
-                      ) : (
-                        <>
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Book
-                        </>
-                      )}
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
+      {viewMatch && (
+        <ViewDetailsModal
+          match={viewMatch}
+          open={!!viewMatch}
+          onOpenChange={(open) => !open && setViewMatch(null)}
+          onBook={() => handleBook(viewMatch)}
+          isBooking={bookingId === viewMatch.id}
+        />
+      )}
+
+      {confirmMatch && (
+        <BookingConfirmModal
+          match={confirmMatch}
+          open={!!confirmMatch}
+          onOpenChange={(open) => !open && setConfirmMatch(null)}
+          onConfirm={() => handleBook(confirmMatch)}
+          isBooking={bookingId === confirmMatch.id}
+        />
+      )}
+    </>
   );
 }

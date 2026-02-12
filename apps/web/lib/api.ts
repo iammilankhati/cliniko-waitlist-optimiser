@@ -1,4 +1,4 @@
-const API_BASE = "https://cliniko-api.digitalsikchya.com/api/v1";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
 
 async function fetcher<T>(endpoint: string): Promise<T> {
   const res = await fetch(`${API_BASE}${endpoint}`);
@@ -100,7 +100,7 @@ export interface TopMatch {
   id: string;
   score: number;
   matchReasons: string[];
-  patient: { id: string; name: string };
+  patient: { id: string; name: string; email?: string | null; phone?: string | null };
   appointmentType: string;
   appointmentTypeDuration: number;
   appointmentTypeColor: string;
